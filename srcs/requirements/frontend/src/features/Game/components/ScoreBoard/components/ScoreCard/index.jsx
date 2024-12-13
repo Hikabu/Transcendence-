@@ -2,6 +2,7 @@ import classNames from 'classnames/bind';
 import React, { useEffect, useState } from 'react';
 
 import styles from './styles.module.css';
+import ScoreManager from 'features/Blockchain/components/ScoreManager'; // Import ScoreManager component
 
 const cx = classNames.bind(styles);
 
@@ -32,7 +33,13 @@ function ScoreCard({ digit }) {
     };
   }, []);
 
-  return <span className={cx('score', animationClass)}>{displayedScore}</span>;
+  return (
+    <div>
+      <span className={cx('score', animationClass)}>{displayedScore}</span>
+      {/* Integrate ScoreManager component */}
+      <ScoreManager playerScore={digit} />
+    </div>
+  );
 }
 
 export default ScoreCard;
