@@ -1,13 +1,37 @@
-export const ACCELERATION_FACTOR = 0.03;
-export const DEACCELERATION_FACTOR = 0.02;
-export const MAX_SPEED = 0.8;
+export const QUICK_START_GAME_MODE = 'quick_start';
+export const DEMO_GAME_MODE = 'demo';
 
-export const BALL_DIAMETER = 10;
-export const ANGLE_FACTOR = 0.2;
-export const MIN_BALL_SPEED = 2;
-export const MAX_BALL_SPEED = 8;
-export const MAX_VELOCITY = 0.3;
+export const CONTROLLED_BY_PLAYER = 'player';
+export const CONTROLLED_BY_AI = 'AI';
 
-export const PADDLE_HEIGHT = 50;
+export const DEFAULT_GAME_SETTINGS = {
+  mode: DEMO_GAME_MODE,
+  sides: [
+    {
+      side: 'left',
+      controlledBy: CONTROLLED_BY_AI,
+      controls: null,
+    },
+    {
+      side: 'right',
+      controlledBy: CONTROLLED_BY_AI,
+      controls: null,
+    },
+  ],
+};
 
-export const RESET_DELAY = 700;
+export const QUICK_START_GAME_SETTINGS = {
+  mode: QUICK_START_GAME_MODE,
+  sides: [
+    {
+      side: 'left',
+      controlledBy: CONTROLLED_BY_PLAYER,
+      controls: { up: 'KeyW', down: 'KeyS' },
+    },
+    {
+      side: 'right',
+      controlledBy: CONTROLLED_BY_AI,
+      controls: null,
+    },
+  ],
+};
