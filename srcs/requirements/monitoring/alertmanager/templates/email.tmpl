@@ -1,0 +1,25 @@
+{{ define "email.custom" }}
+Subject: [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }}
+To: {{ .Alerts.Resolved | len }}
+
+{{ if gt (len .Alerts.Firing) 0 }}
+🔥 Alerts Firing:
+{{ range .Alerts.Firing }}
+- Alert: {{ .Labels.alertname }}
+  Severity: {{ .Labels.severity }}
+  Summary: {{ .Annotations.summary }}
+  Details: {{ .Annotations.description }}
+  Started: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+{{ end }}
+{{ end }}
+
+{{ if gt (len .Alerts.Resolved) 0 }}
+✅ Alerts Resolved:
+{{ range .Alerts.Resolved }}
+- Alert: {{ .Labels.alertname }}
+  Resolved: {{ .EndsAt.Format "2006-01-02 15:04:05" }}
+{{ end }}
+{{ end }}
+
+View in Grafana: {{ .ExternalURL }}
+{{ end }}

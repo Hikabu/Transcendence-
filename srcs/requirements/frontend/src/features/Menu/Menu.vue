@@ -2,7 +2,7 @@
   <div
     v-show="!isMenuHidden"
     class="menu"
-    :class="{ menu_opened: isOpen }"
+    :class="{ menu_open: isOpen }"
     :style="{
       '--menu-container-width': `${menuContainerWidth}px`,
       '--menu-container-height': `${menuContainerHeight}px`,
@@ -11,7 +11,7 @@
   >
     <ul ref="menuContainerRef" class="menu__container">
       <li
-        v-for="(row, rowIndex) in MENU_ITEMS(t)"
+        v-for="(row, rowIndex) in MENU_ITEMS"
         :key="rowIndex"
         class="menu__row"
         :style="{ height: row.height || '50%' }"
@@ -19,29 +19,26 @@
         <ul class="menu__list">
           <li
             v-for="(item, itemIndex) in row.items"
-            :key="`${itemIndex}-${item.key}`"
+            :key="itemIndex"
             :ref="(el) => (menuItemRefs[rowIndex][itemIndex] = el)"
             class="menu__item"
             :class="{
               menu__item_row_first: rowIndex === 0,
-              menu__item_row_middle: rowIndex > 0 && rowIndex < MENU_ITEMS(t).length - 1,
-              menu__item_row_last: rowIndex === MENU_ITEMS(t).length - 1,
+              menu__item_row_middle: rowIndex > 0 && rowIndex < MENU_ITEMS.length - 1,
+              menu__item_row_last: rowIndex === MENU_ITEMS.length - 1,
               menu__item_active: activeRowIndex === rowIndex && activeItemIndex === itemIndex,
               menu__item_opened: menuItemOpenedKey === item.key,
             }"
             @mouseenter="handleMouseEnter"
             @mouseleave="handleMouseLeave"
           >
-            <ItemContentWrapper
-              :title="item.title"
-              :is-open="menuItemOpenedKey === item.key"
-              :on-close="closeMenuItem"
-            >
+            <div class="menu__item-content">
+              <span class="menu__item-title">{{ item.title }}</span>
               <template v-if="item.content">
                 <component :is="item.content" v-if="isVueComponent(item.content)" />
                 <span v-else>{{ item.content }}</span>
               </template>
-            </ItemContentWrapper>
+            </div>
             <div class="menu__item-container">
               <button
                 class="menu__item-button"
@@ -78,10 +75,7 @@
 <script setup>
 import { isVueComponent } from 'shared/lib';
 import { onMounted, onUnmounted, onUpdated, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-const { t } = useI18n();
 
-import { ItemContentWrapper } from './components';
 import { MENU_ITEMS } from './config/constants.js';
 
 const props = defineProps({
@@ -99,19 +93,18 @@ const emit = defineEmits([
 ]);
 
 const menuContainerRef = ref(null);
-const menuItemRefs = ref(Array.from({ length: MENU_ITEMS(t).length }, () => []));
+const menuItemRefs = ref(Array.from({ length: MENU_ITEMS.length }, () => []));
 
 const menuContainerWidth = ref(0);
 const menuContainerHeight = ref(0);
 
+const isDestroyed = ref(false);
 const isMenuHidden = ref(false);
 const menuItemClickedKey = ref(null);
 const menuItemOpenedKey = ref(null);
-const isMouseInsideMenu = ref(false);
-
+const forcedBallPositionUpdateTimeoutId = ref(null);
 const menuItemDimensionsUpdateTimoutId = ref(null);
-const menuDestroyTimeoutId = ref(null);
-const closeItemTimeoutId = ref(null);
+const isMouseInsideMenu = ref(false);
 
 const activeRowIndex = ref(null);
 const activeItemIndex = ref(null);
@@ -146,39 +139,59 @@ const updateMenuItemDimensions = () => {
   });
 };
 
-const closeMenuItem = (delay) => {
-  const close = () => {
-    menuItemClickedKey.value = null;
-    menuItemOpenedKey.value = null;
-  };
-
-  if (delay && typeof delay === 'number') {
-    closeItemTimeoutId.value = setTimeout(close, delay);
-  } else {
-    close();
-  }
+const closeMenuItem = () => {
+  menuItemClickedKey.value = null;
+  menuItemOpenedKey.value = null;
+  setTimeout(() => (isDestroyed.value = true), 500);
 };
 
-const handleMouseEnter = () => {
+const updateForcedBallPosition = (activeElement) => {
+  if (!activeElement || Boolean(menuItemOpenedKey)) {
+    emit('on-force-ball-position', null);
+    return;
+  }
+
+  if (navigationMethod.value === 'mouse' && !isMouseInsideMenu.value) return;
+
+  const container = activeElement.offsetParent;
+  const containerRect = container.getBoundingClientRect();
+  const boundingBox = activeElement.getBoundingClientRect();
+  const top =
+    ((boundingBox.top - containerRect.top + window.scrollY + 15) / containerRect.height) * 100;
+  const left =
+    ((boundingBox.left + boundingBox.width - containerRect.left + window.scrollX) /
+      containerRect.width) *
+    100;
+
+  emit('on-force-ball-position', { x: left, y: top });
+};
+
+const handleMouseEnter = (event) => {
   if (navigationMethod.value !== 'mouse') {
     navigationMethod.value = 'mouse';
     activeRowIndex.value = null;
     activeItemIndex.value = null;
   }
 
+  clearTimeout(forcedBallPositionUpdateTimeoutId.value);
   isMouseInsideMenu.value = true;
+  forcedBallPositionUpdateTimeoutId.value = setTimeout(() => {
+    updateForcedBallPosition(event.target);
+  }, 350);
   menuItemDimensionsUpdateTimoutId.value = setTimeout(updateMenuItemDimensions, 450);
 };
 
 const handleMouseLeave = () => {
+  emit('on-force-ball-position', null);
   isMouseInsideMenu.value = false;
 };
 
-// Add timout id clearance
 const handleMenuOptionSelect = (optionKey) => {
   emit('on-menu-option-select', optionKey);
   menuItemClickedKey.value = optionKey;
   menuItemOpenedKey.value = optionKey;
+  updateForcedBallPosition();
+  setTimeout(() => (isDestroyed.value = true), 500);
 };
 
 const onMenuAnimationEnd = () => {
@@ -201,12 +214,19 @@ const handleKeydown = (event) => {
     navigationMethod.value = 'keyboard';
     activeRowIndex.value = 0;
     activeItemIndex.value = 0;
+    const activeElement = menuItemRefs.value[activeRowIndex.value]?.[activeItemIndex.value];
+    forcedBallPositionUpdateTimeoutId.value = setTimeout(
+      () => updateForcedBallPosition(activeElement),
+      350
+    );
     menuItemDimensionsUpdateTimoutId.value = setTimeout(updateMenuItemDimensions, 450);
     return;
   }
 
-  const rowCount = MENU_ITEMS(t).length;
-  const itemCount = MENU_ITEMS(t)[activeRowIndex.value]?.items.length || 0;
+  const rowCount = MENU_ITEMS.length;
+  const itemCount = MENU_ITEMS[activeRowIndex.value]?.items.length || 0;
+
+  clearTimeout(forcedBallPositionUpdateTimeoutId.value);
 
   switch (event.key) {
     case 'ArrowDown':
@@ -228,7 +248,7 @@ const handleKeydown = (event) => {
       break;
 
     case 'Enter': {
-      const activeItem = MENU_ITEMS(t)[activeRowIndex.value]?.items[activeItemIndex.value];
+      const activeItem = MENU_ITEMS[activeRowIndex.value]?.items[activeItemIndex.value];
       if (activeItem && !activeItem.disabled) {
         handleMenuOptionSelect(activeItem.key);
       }
@@ -238,6 +258,12 @@ const handleKeydown = (event) => {
     default:
       break;
   }
+
+  const activeElement = menuItemRefs.value[activeRowIndex.value]?.[activeItemIndex.value];
+  forcedBallPositionUpdateTimeoutId.value = setTimeout(
+    () => updateForcedBallPosition(activeElement),
+    350
+  );
 };
 
 // Save menu item id
@@ -251,7 +277,7 @@ watch(
     }
 
     if (!newValue) {
-      closeMenuItem(500);
+      setTimeout(closeMenuItem, 500);
     }
   }
 );
@@ -269,9 +295,8 @@ onUpdated(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
+  clearTimeout(forcedBallPositionUpdateTimeoutId.value);
   clearTimeout(menuItemDimensionsUpdateTimoutId.value);
-  clearTimeout(menuDestroyTimeoutId.value);
-  clearTimeout(closeItemTimeoutId.value);
 });
 </script>
 
@@ -334,7 +359,7 @@ onUnmounted(() => {
   transition: all 0.4s ease-in-out 0.4s;
 }
 
-.menu_opened {
+.menu_open {
   transform: scale(1);
   opacity: 1;
   transition: all 0.2s ease-in-out;
@@ -390,6 +415,41 @@ onUnmounted(() => {
   flex: 0;
   width: 0;
   margin-left: calc(0px - var(--smaller-space));
+}
+
+.menu__item-content {
+  position: absolute;
+  z-index: -1;
+  top: var(--menu-item-top);
+  left: var(--menu-item-left);
+
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--regular-space);
+
+  width: var(--menu-item-width);
+  height: var(--menu-item-height);
+
+  opacity: 0;
+
+  transition: all 0.4s ease-in-out;
+}
+
+.menu__item_opened .menu__item-content {
+  position: absolute;
+  z-index: 900;
+  top: 0;
+  left: 0;
+
+  width: var(--menu-container-width);
+  height: var(--menu-container-height);
+  padding: calc(var(--regular-space) + var(--smaller-space));
+
+  opacity: 1;
+  background-color: var(--dark-color-opacity-95);
+  border-radius: 12px;
+
+  transition: all 0.4s ease-in-out;
 }
 
 .menu__item-container {

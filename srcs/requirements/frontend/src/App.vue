@@ -6,9 +6,14 @@
       <Menu
         :is-open="isMenuOpen"
         @on-close="closeMenu"
+        @on-force-ball-position="forceBallPosition"
         @on-menu-option-select="handleMenuOptionSelect"
       />
-      <Game :settings="gameSettings" @on-close-menu="closeMenu" />
+      <Game
+        :forced-ball-position="forcedBallPosition"
+        :settings="gameSettings"
+        @on-close-menu="closeMenu"
+      />
     </section>
   </main>
 </template>
@@ -23,20 +28,15 @@ import {
 import { MENU_ITEMS_KEYS } from 'features/Menu/config/constants.js';
 import { onMounted, onUnmounted, ref } from 'vue';
 
-import { i18n } from './main.js';
-import { provideLang } from './shared/composables';
-
-provideLang(i18n);
 provideGameSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/pong/');
 
 const isCursorDisabled = ref(false);
 const isMenuOpen = ref(true);
+const forcedBallPosition = ref(undefined);
 const gameSettings = ref(undefined);
 
 let lastMousePosition = { x: 0, y: 0 };
 let isTrackingMouse = false;
-
-const closeMenuTimeoutId = ref(null);
 
 const disableCursor = () => {
   isCursorDisabled.value = true;
@@ -77,23 +77,22 @@ const startMouseTracking = (event) => {
   }
 };
 
-const closeMenu = (delay) => {
-  const close = () => {
-    isMenuOpen.value = false;
-  };
+const closeMenu = () => {
+  isMenuOpen.value = false;
+  forcedBallPosition.value = undefined;
+};
 
-  if (delay && typeof delay === 'number') {
-    closeMenuTimeoutId.value = setTimeout(close, delay);
-  } else {
-    close();
-  }
+const forceBallPosition = (newBallPosition) => {
+  forcedBallPosition.value = newBallPosition;
 };
 
 // Get rid of timeout
 const handleMenuOptionSelect = (optionKey) => {
   if (optionKey === MENU_ITEMS_KEYS.QUICK_START) {
     gameSettings.value = QUICK_START_GAME_SETTINGS;
-    closeMenu(500);
+    setTimeout(() => {
+      closeMenu();
+    }, 500);
   }
 };
 
@@ -116,7 +115,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
-  clearTimeout(closeMenuTimeoutId);
 });
 </script>
 
@@ -173,8 +171,6 @@ onUnmounted(() => {
 
   position: absolute;
   z-index: 900;
-
-  display: none;
 
   width: 100%;
   height: 100%;

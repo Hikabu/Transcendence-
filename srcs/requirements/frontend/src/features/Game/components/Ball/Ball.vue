@@ -2,12 +2,13 @@
   <div
     class="wrapper"
     :class="{
-      wrapper_bubbling_vertical: hasBouncedOff === 2 || hasBouncedOff === 4,
-      wrapper_bubbling_horizontal: hasBouncedOff === 1 || hasBouncedOff === 3,
+      wrapper_bubbling_vertical: !isPositionForced && (hasBouncedOff === 2 || hasBouncedOff === 4),
+      wrapper_bubbling_horizontal:
+        !isPositionForced && (hasBouncedOff === 1 || hasBouncedOff === 3),
     }"
     :style="{
       ...styles,
-      '--bubbling-animation': `${hasBouncedOff === 1 || hasBouncedOff === 3 ? 'bubble-anim-horizontal' : 'bubble-anim-vertical'}`,
+      '--bubbling-animation': `${!isPositionForced && (hasBouncedOff === 1 || hasBouncedOff === 3) ? 'bubble-anim-horizontal' : 'bubble-anim-vertical'}`,
       '--squash-offset': squashOffset,
     }"
     @animationend="onBubbleAnimationEnd"
@@ -15,24 +16,27 @@
     <div
       class="ball"
       :class="{
-        'curve-splash': isCurveApplied,
-        'curve-splash-max': isMaxCurveApplied,
+        'curve-splash': !isPositionForced && isCurveApplied,
+        'curve-splash-max': !isPositionForced && isMaxCurveApplied,
       }"
       :style="{
-        '--rotate-direction': `${rotateDirection}deg`,
-        '--rotate-duration': `${rotateDuration}s`,
+        '--rotate-direction': `${isPositionForced ? 360 : rotateDirection}deg`,
+        '--rotate-duration': `${isPositionForced ? MAX_ROTATE_DURATION : rotateDuration}s`,
       }"
       @animationend="onCurveSplashAnimationEnd"
     >
       <div class="ball__container">
-        <div class="ball__core spinning" :style="{ backgroundImage: `url('${ballSkin}')` }" />
+        <div
+          class="ball__core"
+          :style="{ backgroundImage: `url('${ballSkin}')` }"
+          :class="{ spinning: !isPositionForced }"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// noinspection ES6UnusedImports
 import ballSkin from 'assets/ballSkins/skin2.png';
 import { mapRange } from 'shared/lib';
 import { computed, ref, watch } from 'vue';
@@ -45,10 +49,17 @@ import {
   MIN_ROTATE_DURATION,
 } from './config/constants.js';
 
+const { isPositionForced } = defineProps({
+  isPositionForced: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const { ballWidth, ballHeight } = useGameDimensionsInject();
 const gameSocket = useGameSocketInject();
 
-const hasBouncedOff = ref(2);
+const hasBouncedOff = ref(0);
 const isCurveApplied = ref(false);
 const isMaxCurveApplied = ref(false);
 
@@ -72,9 +83,12 @@ const styles = computed(() => {
   return {
     width: `${ballWidth.value}%`,
     height: `${ballHeight.value}%`,
-    top: `${positionY.value}%`,
-    left: `${positionX.value}%`,
-    transition: `top ${transitionTime}ms linear, left ${transitionTime}ms linear, transform 1s linear`,
+    top: `${isPositionForced ? positionY.value + ballHeight.value : positionY.value}%`,
+    left: `${isPositionForced ? positionX.value - ballWidth.value : positionX.value}%`,
+    zIndex: isPositionForced ? 100 : 1,
+    transition: `top ${isPositionForced ? 200 : transitionTime}ms ${isPositionForced ? 'ease-in-out' : 'linear'},
+      left ${isPositionForced ? 200 : transitionTime}ms ${isPositionForced ? 'ease-in-out' : 'linear'},
+      transform 1s linear`,
   };
 });
 
@@ -110,10 +124,8 @@ watch(
 watch(
   () => bouncedOffSurface.value,
   (newValue = 0) => {
-    hasBouncedOff.value = newValue;
-
     if (newValue === 2 || newValue === 4) {
-      // hasBouncedOff.value = newValue;
+      hasBouncedOff.value = newValue;
       updateBallProperties();
     }
   }
@@ -129,27 +141,26 @@ const onCurveSplashAnimationEnd = () => {
 };
 </script>
 
-<!--suppress CssUnusedSymbol -->
 <style scoped>
 @keyframes bubble-anim-vertical {
   0% {
     transform: scale(1);
   }
 
-  10% {
-    transform: scale(0.85, 1.15);
+  20% {
+    transform: scaleY(calc(0.8 + var(--squash-offset))) scaleX(calc(1.2 - var(--squash-offset)));
   }
 
-  40% {
-    transform: scale(0.75, 1.1);
+  48% {
+    transform: scaleY(calc(1.25 - var(--squash-offset))) scaleX(calc(0.75 + var(--squash-offset)));
   }
 
-  70% {
-    transform: scale(1.1, 0.9);
+  68% {
+    transform: scaleY(calc(0.83 + var(--squash-offset))) scaleX(calc(1.17 - var(--squash-offset)));
   }
 
   80% {
-    transform: scale(0.95, 1.05);
+    transform: scaleY(calc(1.17 - var(--squash-offset))) scaleX(calc(0.83 + var(--squash-offset)));
   }
 
   97%,
@@ -163,20 +174,20 @@ const onCurveSplashAnimationEnd = () => {
     transform: scale(1);
   }
 
-  5% {
-    transform: scale(1.25, 0.65);
+  20% {
+    transform: scaleX(calc(1.2 - var(--squash-offset))) scaleY(calc(0.8 + var(--squash-offset)));
   }
 
-  40% {
-    transform: scale(0.85, 1.1);
+  48% {
+    transform: scaleX(calc(0.75 + var(--squash-offset))) scaleY(calc(1.25 - var(--squash-offset)));
   }
 
-  70% {
-    transform: scale(1.15, 0.75);
+  68% {
+    transform: scaleX(calc(1.17 - var(--squash-offset))) scaleY(calc(0.83 + var(--squash-offset)));
   }
 
   80% {
-    transform: scale(0.9, 1);
+    transform: scaleX(calc(0.83 + var(--squash-offset))) scaleY(calc(1.17 - var(--squash-offset)));
   }
 
   97%,
@@ -284,11 +295,11 @@ const onCurveSplashAnimationEnd = () => {
 }
 
 .wrapper_bubbling_vertical {
-  animation: bubble-anim-vertical 0.4s ease-in-out;
+  animation: bubble-anim-vertical 0.4s linear;
 }
 
 .wrapper_bubbling_horizontal {
-  animation: bubble-anim-horizontal 0.4s ease-in-out;
+  animation: bubble-anim-horizontal 0.4s linear;
 }
 
 .ball {

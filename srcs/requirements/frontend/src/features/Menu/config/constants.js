@@ -1,7 +1,7 @@
 // noinspection JSFileReferences
-import { svgComponents } from 'shared/lib';
+import svgComponents from 'assets/svgComponents.js';
 
-import { QuickStart, Settings } from '../components';
+import { QuickStart } from '../components';
 
 const QUICK_START = 'quick_start';
 const NEW_GAME = 'new_game';
@@ -17,14 +17,14 @@ export const MENU_ITEMS_KEYS = {
   SETTINGS,
 };
 
-export const MENU_ITEMS = (t) => [
+export const MENU_ITEMS = [
   {
     height: '70%',
     items: [
       {
         key: QUICK_START,
-        title: t('menu.items.item.quick_start.title'),
-        description: t('menu.items.item.quick_start.description'),
+        title: 'Quick Start',
+        description: 'Start a quick game against AI',
         content: QuickStart,
         icon: svgComponents['GameIcon'],
         iconSlideTo: 'bottom',
@@ -32,8 +32,8 @@ export const MENU_ITEMS = (t) => [
       },
       {
         key: NEW_GAME,
-        title: t('menu.items.item.new_game.title'),
-        description: t('menu.items.item.new_game.description'),
+        title: 'New Game',
+        description: 'Set up and start a new game',
         content: 'some content here',
         icon: svgComponents['GameConsoleIcon'],
         iconSlideTo: 'bottom',
@@ -41,8 +41,8 @@ export const MENU_ITEMS = (t) => [
       },
       {
         key: PLAY_ONLINE,
-        title: t('menu.items.item.online.title'),
-        description: t('menu.items.item.online.description'),
+        title: 'Play Online',
+        description: 'Join other players around the World',
         icon: svgComponents['GamepadIcon'],
         iconSlideTo: 'bottom',
         disabled: true,
@@ -54,17 +54,17 @@ export const MENU_ITEMS = (t) => [
     items: [
       {
         key: PROFILE,
-        title: t('menu.items.item.profile.title'),
-        description: t('menu.items.item.profile.description'),
+        title: 'Profile',
+        description: 'See and configure your profile settings',
         icon: svgComponents['DeveloperIcon'],
         iconSlideTo: 'right',
         disabled: false,
       },
       {
         key: SETTINGS,
-        title: t('menu.items.item.settings.title'),
-        description: t('menu.items.item.settings.description'),
-        content: Settings,
+        title: 'Settings',
+        description: 'See and configure game settings',
+        content: 'settings here...',
         icon: svgComponents['GameDevelopmentIcon'],
         iconSlideTo: 'right',
         disabled: false,
