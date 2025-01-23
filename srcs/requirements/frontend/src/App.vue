@@ -1,5 +1,21 @@
+<template>
+  <div class="no-cursor-overlay" :class="{ 'no-cursor-overlay_active': isCursorDisabled }" />
+  <div class="grain-overlay" />
+  <main class="main">
+    <section class="container">
+      <Menu
+        :is-open="isMenuOpen"
+        @on-close="closeMenu"
+        @on-menu-option-select="handleMenuOptionSelect"
+      />
+      <Game :settings="gameSettings" @on-close-menu="closeMenu" />
+    </section>
+  </main>
+</template>
+
 <script setup>
 import { Game, Menu } from 'features';
+import { provideGameSocket } from 'features/Game/composables/useGameSocket.js';
 import {
   QUICK_START_GAME_MODE,
   QUICK_START_GAME_SETTINGS,
@@ -7,13 +23,20 @@ import {
 import { MENU_ITEMS_KEYS } from 'features/Menu/config/constants.js';
 import { onMounted, onUnmounted, ref } from 'vue';
 
+import { i18n } from './main.js';
+import { provideLang } from './shared/composables';
+
+provideLang(i18n);
+provideGameSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/pong/');
+
 const isCursorDisabled = ref(false);
 const isMenuOpen = ref(true);
-const forcedBallPosition = ref(undefined);
 const gameSettings = ref(undefined);
 
 let lastMousePosition = { x: 0, y: 0 };
 let isTrackingMouse = false;
+
+const closeMenuTimeoutId = ref(null);
 
 const disableCursor = () => {
   isCursorDisabled.value = true;
@@ -54,19 +77,23 @@ const startMouseTracking = (event) => {
   }
 };
 
-const closeMenu = () => {
-  isMenuOpen.value = false;
-  forcedBallPosition.value = undefined;
+const closeMenu = (delay) => {
+  const close = () => {
+    isMenuOpen.value = false;
+  };
+
+  if (delay && typeof delay === 'number') {
+    closeMenuTimeoutId.value = setTimeout(close, delay);
+  } else {
+    close();
+  }
 };
 
-const forceBallPosition = (newBallPosition) => {
-  forcedBallPosition.value = newBallPosition;
-};
-
-const onMenuOptionSelect = (optionKey) => {
+// Get rid of timeout
+const handleMenuOptionSelect = (optionKey) => {
   if (optionKey === MENU_ITEMS_KEYS.QUICK_START) {
-    closeMenu();
     gameSettings.value = QUICK_START_GAME_SETTINGS;
+    closeMenu(500);
   }
 };
 
@@ -89,24 +116,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  clearTimeout(closeMenuTimeoutId);
 });
 </script>
-
-<template>
-  <div class="no-cursor-overlay" :class="{ 'no-cursor-overlay_active': isCursorDisabled }" />
-  <div class="grain-overlay" />
-  <main class="main">
-    <section class="container">
-      <Menu
-        :is-open="isMenuOpen"
-        @on-close="closeMenu"
-        @on-force-ball-position="forceBallPosition"
-        @on-on-menu-option-select="onMenuOptionSelect"
-      />
-      <Game :forced-ball-position="forcedBallPosition" :settings="gameSettings" />
-    </section>
-  </main>
-</template>
 
 <style scoped>
 @keyframes noise {
@@ -162,6 +174,8 @@ onUnmounted(() => {
   position: absolute;
   z-index: 900;
 
+  display: none;
+
   width: 100%;
   height: 100%;
 }
@@ -214,12 +228,8 @@ onUnmounted(() => {
 
 .container {
   position: relative;
-
-  overflow: hidden;
-
   aspect-ratio: 4 / 3;
   height: 90%;
-
   border-radius: 12px;
 }
 </style>
