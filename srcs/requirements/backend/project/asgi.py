@@ -13,6 +13,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from django.urls import path
 from project.apps.pong.consumers import PongConsumer
+from project.apps.chat.consumers import ChatConsumer
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
 
@@ -21,6 +22,7 @@ application = ProtocolTypeRouter({
     "websocket": AuthMiddlewareStack(
         URLRouter([
             path("ws/pong/", PongConsumer.as_asgi()),
+			path('ws/chat/', ChatConsumer.as_asgi()),
         ])
     ),
 })
