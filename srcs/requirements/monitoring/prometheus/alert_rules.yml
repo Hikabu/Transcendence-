@@ -1,7 +1,7 @@
 groups:
-  - name: example
+  - name: 'TRANSCENDENCE'
     rules:
-      # General instance down
+      # General instance down/service down alert
       - alert: InstanceDown
         expr: up == 0
         for: 1m
@@ -59,12 +59,59 @@ groups:
           summary: "High number of active PostgreSQL connections on {{ $labels.instance }}"
           description: "PostgreSQL instance {{ $labels.instance }} has more than 100 active connections."
 
-      # for Redis
-      - alert: RedisMemoryUsageHigh
-        expr: redis_memory_used_bytes{instance="redis-exporter:9121"} > 1073741824
-        for: 5m
+      #  nginx alerts
+      - alert: NginxDown
+        expr: nginx_up == 0  # Alert triggers when value becomes 0
+        for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Redis memory usage is above 1 GB"
-          description: "Redis instance ({{ $labels.instance }}) is using {{ $value | humanize1024 }} of memory, which is more than 1 GB."
+          summary: "Nginx is down"
+          description: "Nginx has been down for more than 1 minute on {{ $labels.instance }}"
+
+      - alert: NginxHighConnections
+        expr: nginx_connections_active > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of active connections"
+          description: "Nginx has more than 1000 active connections for 5 minutes"
+
+      - alert: NginxHighRequestRate
+        expr: rate(nginx_http_requests_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate"
+          description: "Nginx is receiving more than 100 requests per second"
+
+      - alert: NginxHighErrorRate
+        expr: rate(nginx_http_requests_total{status=~"^5.*"}[5m]) / rate(nginx_http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate"
+          description: "More than 5% of requests are resulting in 5xx errors"
+
+      - alert: NginxLatencyHigh
+        expr: rate(nginx_connections_waiting[5m]) > rate(nginx_connections_active[5m]) * 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "More than 50% of connections are in waiting state"
+
+  - name: 'test_alerts'
+    rules:
+      - alert: TestAlert
+        expr: vector(1)  # this will always trigger
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Test alert"
+          description: "This is a test alert to verify email notifications"

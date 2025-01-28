@@ -1,1 +1,0 @@
-FROM wrouesnel/postgres_exporter:latest

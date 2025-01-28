@@ -7,7 +7,7 @@ ARG SMTP_AUTH_USERNAME=${SMTP_AUTH_USERNAME}
 ARG SMTP_AUTH_IDENTITY=${SMTP_AUTH_IDENTITY}
 ARG SMTP_AUTH_PASSWORD=${SMTP_AUTH_PASSWORD}
 
-COPY ./config.yml /etc/alertmanager/alertmanager.yml
+COPY config/alertmanager.yml /etc/alertmanager/alertmanager.yml
 
 RUN sed -i "s|SMTP_TO|${SMTP_TO}|g" /etc/alertmanager/alertmanager.yml
 RUN sed -i "s|SMTP_FROM|${SMTP_FROM}|g" /etc/alertmanager/alertmanager.yml

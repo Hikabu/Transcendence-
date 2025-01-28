@@ -15,7 +15,7 @@ COPY . .
 # Create STATIC_ROOT directory
 RUN mkdir -p /usr/src/app/staticfiles
 
-# Collect static files
+#Collect static files
 RUN python manage.py collectstatic --noinput
 
 # Apply migrations
@@ -24,3 +24,9 @@ RUN python manage.py migrate --noinput
 
 # Start Daphne server
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
+
+# # Create entrypoint script
+# COPY entrypoint.sh .
+# RUN chmod +x entrypoint.sh
+
+# ENTRYPOINT ["./entrypoint.sh"]

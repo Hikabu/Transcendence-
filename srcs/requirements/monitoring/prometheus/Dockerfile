@@ -7,7 +7,7 @@ RUN mkdir -p /etc/prometheus/certs /etc/prometheus/auth
 COPY gen-pass.py /gen-pass.py
 
 RUN openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
-    -subj "/C=MA/ST=1337/L=1337/O=1337/CN=localhost" \
+    -subj "/C=TH/ST=Bangkok/L=Bangkok/O=42Bangkok/CN=localhost" \
     -keyout /etc/prometheus/certs/server.key -out /etc/prometheus/certs/server.crt
 
 RUN chmod 666 /etc/prometheus/certs/*
@@ -29,7 +29,7 @@ COPY --from=builder /etc/prometheus/auth /etc/prometheus/auth
 
 COPY prometheus.yml /etc/prometheus/prometheus.yml
 COPY web.yml /etc/prometheus/web.yml
-COPY rules/alerts.yml /etc/prometheus/rules/alerts.yml
+COPY alert_rules.yml /etc/prometheus/alert_rules.yml
 
 RUN HASHED_PASSWORD=$(cat /etc/prometheus/auth/hashed_password) && \
     sed -i 's|hashed_password|'"$HASHED_PASSWORD"'|g' /etc/prometheus/web.yml

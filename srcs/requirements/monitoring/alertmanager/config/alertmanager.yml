@@ -1,0 +1,29 @@
+global:
+  resolve_timeout: 1m
+  smtp_smarthost: 'SMTP_SMARTHOST'
+  smtp_from: 'SMTP_FROM'
+  smtp_auth_username: 'SMTP_AUTH_USERNAME'
+  smtp_auth_password: 'SMTP_AUTH_PASSWORD'
+  smtp_auth_identity: 'SMTP_AUTH_IDENTITY'
+  smtp_require_tls: false
+
+route:
+  receiver: 'email-notifications'
+  group_by: ['alertname', 'job']
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: 'email-notifications'
+    email_configs:
+      - to: 'SMTP_TO'
+        send_resolved: true
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname']
+

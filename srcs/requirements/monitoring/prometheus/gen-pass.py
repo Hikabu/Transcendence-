@@ -1,15 +1,9 @@
 import sys
+import argparse
 import bcrypt
 
-try:
-    if len(sys.argv) != 2:
-        print("Error: Please provide exactly one password argument", file=sys.stderr)
-        sys.exit(1)
-    
-    password = sys.argv[1]
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    print(hashed_password.decode('utf-8'))
-
-except Exception as e:
-    print(f"Error: {str(e)}", file=sys.stderr)
-    sys.exit(1)
+parser = argparse.ArgumentParser(description="Generate a bcrypt hash of a password.")
+parser.add_argument("password", type=str, help="The password to hash.")
+args = parser.parse_args()
+hashed_password = bcrypt.hashpw(args.password.encode("utf-8"), bcrypt.gensalt())
+print(hashed_password.decode())

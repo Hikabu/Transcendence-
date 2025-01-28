@@ -42,6 +42,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8081:8081"
     volumes:
       - frontend_build:/usr/share/nginx/html
     networks:
@@ -58,15 +59,38 @@ services:
       timeout: 30s
       retries: 5
 
+  alertmanager:
+    container_name: alertmanager
+    restart: always
+    build:
+      context: ./requirements/monitoring/alertmanager
+      dockerfile: Dockerfile
+      args:
+        - SMTP_TO=${SMTP_TO}
+        - SMTP_FROM=${SMTP_FROM}
+        - SMTP_SMARTHOST=${SMTP_SMARTHOST}
+        - SMTP_AUTH_USERNAME=${SMTP_AUTH_USERNAME}
+        - SMTP_AUTH_IDENTITY=${SMTP_AUTH_IDENTITY}
+        - SMTP_AUTH_PASSWORD=${SMTP_AUTH_PASSWORD}
+    volumes:
+      - ./requirements/monitoring/alertmanager/data:/alertmanager/data
+    networks:
+      - ft_transcendence
+    ports:
+      - '9093:9093'
+    depends_on:
+      - prometheus
+
   cadvisor:
-      image: gcr.io/cadvisor/cadvisor:v0.47.2
       container_name: cadvisor
+      restart: always
       privileged: true
-      devices:
-        - /dev/kmsg:/dev/kmsg
+      build:
+        context: ./requirements/monitoring/exporters/cadvisor
+        dockerfile: Dockerfile
       volumes:
         - /:/rootfs:ro
-        - /var/run:/var/run:ro
+        - /var/run/docker.sock:/var/run/docker.sock:rw
         - /sys:/sys:ro
         - /var/lib/docker/:/var/lib/docker:ro
         - /dev/disk/:/dev/disk:ro
@@ -74,7 +98,6 @@ services:
         - "8080:8080"
       networks:
         - ft_transcendence
-      restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v2.45.0
@@ -85,31 +108,41 @@ services:
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.listen-address=:9090'
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./requirements/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+      - ./requirements/monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
     networks:
       - ft_transcendence
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:10.0.3
+    image: grafana/grafana:latest
     container_name: grafana
     ports:
       - "3000:3000"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./requirements/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./requirements/monitoring/grafana/dashboards:/etc/grafana/dashboards
       - grafana_data:/var/lib/grafana
     environment:
+      - GF_SERVER_PROTOCOL=http
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/Django.json
+      # - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
     networks:
       - ft_transcendence
     restart: unless-stopped
+    depends_on:
+      - prometheus
 
 networks:
   ft_transcendence:
@@ -117,6 +150,8 @@ networks:
 
 volumes:
   frontend_build:
+  prometheus_data:
+  grafana_data:
 
 secrets:
   ssl_certificate:
