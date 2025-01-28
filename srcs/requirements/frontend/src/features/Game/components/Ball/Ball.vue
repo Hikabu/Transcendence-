@@ -1,8 +1,43 @@
+<template>
+  <div
+    class="wrapper"
+    :class="{
+      wrapper_bubbling_vertical: hasBouncedOff === 2 || hasBouncedOff === 4,
+      wrapper_bubbling_horizontal: hasBouncedOff === 1 || hasBouncedOff === 3,
+    }"
+    :style="{
+      ...styles,
+      '--bubbling-animation': `${hasBouncedOff === 1 || hasBouncedOff === 3 ? 'bubble-anim-horizontal' : 'bubble-anim-vertical'}`,
+      '--squash-offset': squashOffset,
+    }"
+    @animationend="onBubbleAnimationEnd"
+  >
+    <div
+      class="ball"
+      :class="{
+        'curve-splash': isCurveApplied,
+        'curve-splash-max': isMaxCurveApplied,
+      }"
+      :style="{
+        '--rotate-direction': `${rotateDirection}deg`,
+        '--rotate-duration': `${rotateDuration}s`,
+      }"
+      @animationend="onCurveSplashAnimationEnd"
+    >
+      <div class="ball__container">
+        <div class="ball__core spinning" :style="{ backgroundImage: `url('${ballSkin}')` }" />
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
+// noinspection ES6UnusedImports
 import ballSkin from 'assets/ballSkins/skin2.png';
 import { mapRange } from 'shared/lib';
-import { computed, defineProps, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
+import { useGameDimensionsInject, useGameSocketInject } from '../../composables';
 import {
   MAX_CURVE,
   MAX_ROTATE_DURATION,
@@ -10,122 +45,79 @@ import {
   MIN_ROTATE_DURATION,
 } from './config/constants.js';
 
-const {
-  width,
-  height,
-  position,
-  isPositionForced,
-  velocity,
-  isOutOfBounds,
-  curve,
-  ballBouncedOffSurface,
-} = defineProps({
-  width: { type: Number, default: 100 },
-  height: { type: Number, default: 100 },
-  position: {
-    type: Object,
-    required: true,
-    validator: (value) => {
-      return typeof value.x === 'number' && typeof value.y === 'number';
-    },
-  },
-  isPositionForced: {
-    type: Boolean,
-    default: false,
-  },
-  velocity: {
-    type: Object,
-    required: true,
-    validator: (value) => {
-      return typeof value.x === 'number' && typeof value.y === 'number';
-    },
-  },
-  isOutOfBounds: {
-    type: Boolean,
-    required: true,
-  },
-  curve: {
-    type: Number,
-    required: true,
-  },
-  ballBouncedOffSurface: {
-    type: Number,
-    required: true,
-    validator: (value) => value >= 1 && value <= 4,
-  },
-});
+const { ballWidth, ballHeight } = useGameDimensionsInject();
+const gameSocket = useGameSocketInject();
 
-const ballPosition = ref({ x: position?.x || 50, y: position?.y || 50 });
-const previousXVelocitySign = ref(velocity?.x > 0 ? 1 : -1);
-const hasBouncedOff = ref(0);
+const hasBouncedOff = ref(2);
 const isCurveApplied = ref(false);
 const isMaxCurveApplied = ref(false);
-let animationFrameId = null;
 
 const squashOffset = ref(0.4);
 const rotateDuration = ref(MAX_ROTATE_DURATION);
 const rotateDirection = ref(0);
 
+const positionX = computed(() => gameSocket.ballPositionX.value);
+const positionY = computed(() => gameSocket.ballPositionY.value);
+const velocityX = computed(() => gameSocket.ballVelocityX.value);
+const isOutOfBounds = computed(() => gameSocket.isBallOutOfBounds.value);
+const curve = computed(() => gameSocket.ballCurve.value);
+const bouncedOffSurface = computed(() => gameSocket.ballBouncedOffSurface.value);
+
 const styles = computed(() => {
-  const isCenter = ballPosition.value.y === 50 && ballPosition.value.x === 50;
-  const transitionTime = !isOutOfBounds && !isCenter ? 25 : 0;
+  if (positionX.value === undefined || positionY.value === undefined) return {};
+
+  const isCenter = positionY.value === 50 && positionX.value === 50;
+  const transitionTime = !isOutOfBounds.value && !isCenter ? 25 : 0;
 
   return {
-    width: `${width}%`,
-    height: `${height}%`,
-    top: `${isPositionForced ? ballPosition.value.y + height : ballPosition.value.y}%`,
-    left: `${isPositionForced ? ballPosition.value.x - width : ballPosition.value.x}%`,
-    zIndex: isPositionForced ? 100 : 1,
-    transition: `top ${isPositionForced ? 100 : transitionTime}ms linear,
-      left ${isPositionForced ? 100 : transitionTime}ms linear,
-      transform 1s linear`,
+    width: `${ballWidth.value}%`,
+    height: `${ballHeight.value}%`,
+    top: `${positionY.value}%`,
+    left: `${positionX.value}%`,
+    transition: `top ${transitionTime}ms linear, left ${transitionTime}ms linear, transform 1s linear`,
   };
 });
 
-watch(
-  () => velocity,
-  (newVelocity) => {
-    const curveVelocity = Math.abs(curve);
-    if (curveVelocity > 1.5) {
-      isCurveApplied.value = true;
-      isMaxCurveApplied.value = curveVelocity > 3.5;
-    }
+function updateBallProperties() {
+  const curveVelocity = Math.abs(curve.value);
+  isCurveApplied.value = curveVelocity > 1.5;
+  isMaxCurveApplied.value = curveVelocity > 3.5;
 
-    if (curve === 0) {
-      rotateDuration.value = MAX_ROTATE_DURATION;
-    }
+  if (curve.value === 0) {
+    rotateDuration.value = MAX_ROTATE_DURATION;
+  }
 
-    const newXVelocitySign = newVelocity?.x > 0 ? 1 : -1;
-    if (newXVelocitySign !== previousXVelocitySign.value) {
-      rotateDuration.value =
-        MAX_ROTATE_DURATION -
-        mapRange(curveVelocity, MIN_CURVE, MAX_CURVE, MIN_ROTATE_DURATION, MAX_ROTATE_DURATION);
-      rotateDirection.value = newVelocity?.x > 0 ? 360 : -360;
-      squashOffset.value = parseFloat(
-        mapRange(Math.abs(newVelocity?.x), 0.5, 2, 0, 0.4).toFixed(2)
-      );
-    }
+  rotateDuration.value =
+    MAX_ROTATE_DURATION -
+    mapRange(curveVelocity, MIN_CURVE, MAX_CURVE, MIN_ROTATE_DURATION, MAX_ROTATE_DURATION);
 
-    previousXVelocitySign.value = newXVelocitySign;
-  },
-  { immediate: true }
-);
+  rotateDirection.value = velocityX.value > 0 ? 360 : -360;
+  squashOffset.value = parseFloat(mapRange(Math.abs(velocityX.value), 0.5, 2, 0, 0.4).toFixed(2));
+}
+
+function resetRotation() {
+  rotateDuration.value = MAX_ROTATE_DURATION;
+  rotateDirection.value = 0;
+}
 
 watch(
-  () => ballBouncedOffSurface,
-  (newValue) => {
-    hasBouncedOff.value = 0;
-    setTimeout(() => {
-      hasBouncedOff.value = newValue;
-    }, 10);
+  () => isOutOfBounds.value,
+  () => {
+    resetRotation();
   }
 );
 
-const update = () => {
-  ballPosition.value.x = position?.x;
-  ballPosition.value.y = position?.y;
-  animationFrameId = requestAnimationFrame(update);
-};
+watch(
+  () => bouncedOffSurface.value,
+  (newValue = 0) => {
+    hasBouncedOff.value = newValue;
+
+    if (newValue === 2 || newValue === 4) {
+      // hasBouncedOff.value = newValue;
+      updateBallProperties();
+    }
+  }
+);
 
 const onBubbleAnimationEnd = () => {
   hasBouncedOff.value = 0;
@@ -135,80 +127,29 @@ const onCurveSplashAnimationEnd = () => {
   isCurveApplied.value = false;
   isMaxCurveApplied.value = false;
 };
-
-onMounted(() => {
-  animationFrameId = requestAnimationFrame(update);
-});
-
-onUnmounted(() => {
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-  }
-});
 </script>
 
-<template>
-  <div
-    class="wrapper"
-    :class="{
-      wrapper_bubbling_vertical: !isPositionForced && (hasBouncedOff === 2 || hasBouncedOff === 4),
-      wrapper_bubbling_horizontal:
-        !isPositionForced && (hasBouncedOff === 1 || hasBouncedOff === 3),
-    }"
-    :style="{
-      ...styles,
-      '--bubbling-animation': `${!isPositionForced && (hasBouncedOff === 1 || hasBouncedOff === 3) ? 'bubble-anim-horizontal' : 'bubble-anim-vertical'}`,
-      '--squash-offset': squashOffset,
-    }"
-    @animationend="onBubbleAnimationEnd"
-  >
-    <div
-      class="ball"
-      :class="{
-        'curve-splash': !isPositionForced && isCurveApplied,
-        'curve-splash-max': !isPositionForced && isMaxCurveApplied,
-      }"
-      :style="{
-        '--rotate-direction': `${isPositionForced ? 360 : rotateDirection}deg`,
-        '--rotate-duration': `${isPositionForced ? MAX_ROTATE_DURATION : rotateDuration}s`,
-      }"
-      @animationend="onCurveSplashAnimationEnd"
-    >
-      <div class="ball__container">
-        <div
-          class="ball__core"
-          :style="{ backgroundImage: `url('${ballSkin}')` }"
-          :class="{ spinning: !isPositionForced && velocity !== 0 }"
-        />
-      </div>
-    </div>
-  </div>
-</template>
-
+<!--suppress CssUnusedSymbol -->
 <style scoped>
 @keyframes bubble-anim-vertical {
   0% {
     transform: scale(1);
   }
 
-  20% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleY(calc(0.8 + var(--squash-offset))) scaleX(calc(1.2 - var(--squash-offset)));
+  10% {
+    transform: scale(0.85, 1.15);
   }
 
-  48% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleY(calc(1.25 - var(--squash-offset))) scaleX(calc(0.75 + var(--squash-offset)));
+  40% {
+    transform: scale(0.75, 1.1);
   }
 
-  68% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleY(calc(0.83 + var(--squash-offset))) scaleX(calc(1.17 - var(--squash-offset)));
+  70% {
+    transform: scale(1.1, 0.9);
   }
 
   80% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleY(calc(1.17 - var(--squash-offset))) scaleX(calc(0.83 + var(--squash-offset)));
+    transform: scale(0.95, 1.05);
   }
 
   97%,
@@ -222,24 +163,20 @@ onUnmounted(() => {
     transform: scale(1);
   }
 
-  20% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleX(calc(1.2 - var(--squash-offset))) scaleY(calc(0.8 + var(--squash-offset)));
+  5% {
+    transform: scale(1.25, 0.65);
   }
 
-  48% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleX(calc(0.75 + var(--squash-offset))) scaleY(calc(1.25 - var(--squash-offset)));
+  40% {
+    transform: scale(0.85, 1.1);
   }
 
-  68% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleX(calc(1.17 - var(--squash-offset))) scaleY(calc(0.83 + var(--squash-offset)));
+  70% {
+    transform: scale(1.15, 0.75);
   }
 
   80% {
-    /* noinspection CssUnresolvedCustomProperty */
-    transform: scaleX(calc(0.83 + var(--squash-offset))) scaleY(calc(1.17 - var(--squash-offset)));
+    transform: scale(0.9, 1);
   }
 
   97%,
@@ -254,7 +191,6 @@ onUnmounted(() => {
   }
 
   100% {
-    /* noinspection CssUnresolvedCustomProperty */
     transform: translate(-50%, -50%) rotate(var(--rotate-direction));
   }
 }
@@ -334,6 +270,10 @@ onUnmounted(() => {
 }
 
 .wrapper {
+  --squash-offset: 0;
+  --rotate-direction: 0;
+  --rotate-duration: 0;
+
   position: absolute;
   z-index: 1;
   top: 0;
@@ -344,11 +284,11 @@ onUnmounted(() => {
 }
 
 .wrapper_bubbling_vertical {
-  animation: bubble-anim-vertical 0.4s linear;
+  animation: bubble-anim-vertical 0.4s ease-in-out;
 }
 
 .wrapper_bubbling_horizontal {
-  animation: bubble-anim-horizontal 0.4s linear;
+  animation: bubble-anim-horizontal 0.4s ease-in-out;
 }
 
 .ball {
@@ -419,7 +359,6 @@ onUnmounted(() => {
   background-position: 0 50%;
   background-size: 200% 200%;
 
-  /* noinspection CssUnresolvedCustomProperty */
   animation: spin var(--rotate-duration) linear infinite;
 }
 </style>
