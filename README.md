@@ -2,7 +2,15 @@
 
 
 **Prometheus**: http://localhost:9090/
+  - Targets: http://localhost:9090/targets
+  - Alerts: http://localhost:9090/alerts
+
 **Grafana**: http://localhost:3000/
+
+**cAdvisor**: http://localhost:8080
+
+**AlertManager**: http://localhost:9093
+
 
 
 

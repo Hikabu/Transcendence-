@@ -59,15 +59,15 @@ groups:
           summary: "High number of active PostgreSQL connections on {{ $labels.instance }}"
           description: "PostgreSQL instance {{ $labels.instance }} has more than 100 active connections."
 
-      #  nginx alerts
+      # for Nginx
       - alert: NginxDown
-        expr: nginx_up == 0  # Alert triggers when value becomes 0
+        expr: nginx_up == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Nginx is down"
-          description: "Nginx has been down for more than 1 minute on {{ $labels.instance }}"
+          summary: "Nginx instance is down"
+          description: "Nginx has been down for more than 1 minute"
 
       - alert: NginxHighConnections
         expr: nginx_connections_active > 1000
@@ -105,7 +105,36 @@ groups:
           summary: "High latency detected"
           description: "More than 50% of connections are in waiting state"
 
-  - name: 'test_alerts'
+      # for Node alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for 5 minutes"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85%"
+
+      - alert: DiskSpaceRunningOut
+        expr: (node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_free_bytes{mountpoint="/"}) / node_filesystem_size_bytes{mountpoint="/"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space running low"
+          description: "Disk usage is above 85%"
+
+
+  - name: Test alert
     rules:
       - alert: TestAlert
         expr: vector(1)  # this will always trigger

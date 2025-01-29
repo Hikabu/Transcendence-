@@ -16,18 +16,18 @@ setup:
 	@echo "Setting up the environment for ft_transcendence..."
 	@mkdir -p ./secrets
 	@chmod 777 ./secrets
-	@docker volume rm rm srcs_frontend_build 2>/dev/null || true
+	@docker volume rm srcs_frontend_build 2>/dev/null || true
 
 run: setup
 	@echo "Running the services for ft_transcendence..."
 	@bash ./srcs/requirements/tools/create_ssl_cert.sh
-	@docker compose -f $(COMPOSE_FILE) up --build -d && \
+	@$(COMPOSE_CMD) -f $(COMPOSE_FILE) up --build -d && \
 	echo "Services are up and running." || \
 	echo "Error: Unable to run the services."
 
 stop:
 	@echo "Stopping the services for ft_transcendence..."
-	@docker compose -f $(COMPOSE_FILE) down
+	@$(COMPOSE_CMD) -f $(COMPOSE_FILE) down
 
 restart: stop run
 
@@ -41,7 +41,7 @@ volume:
 
 clean:
 	@echo "Cleaning up the environment for ft_transcendence..."
-	@docker compose -f $(COMPOSE_FILE) down
+	@$(COMPOSE_CMD) -f $(COMPOSE_FILE) down
 	@docker stop $(docker ps -qa) 2>/dev/null || true
 	@docker rm $(docker ps -qa) 2>/dev/null || true
 	@docker rmi -f $(docker images -qa) 2>/dev/null || true
