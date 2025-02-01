@@ -11,6 +11,9 @@ services:
     expose:
       - 8000
     restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 1m
@@ -58,6 +61,26 @@ services:
       interval: 1m30s
       timeout: 30s
       retries: 5
+
+  postgres:
+    container_name: postgres
+    build:
+      context: ./requirements/postgresql
+      dockerfile: Dockerfile
+    ports:
+      - '5432:5432'
+    networks:
+      - ft_transcendence
+    environment:
+      - POSTGRES_DB=postgres   
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=42transc
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
 
   alertmanager:
     container_name: alertmanager
@@ -129,7 +152,6 @@ services:
       - ./requirements/monitoring/grafana/provisioning:/etc/grafana/provisioning
       - ./requirements/monitoring/grafana/dashboards:/etc/grafana/dashboards
       - grafana_data:/var/lib/grafana
-      - ./ssl:/etc/grafana/ssl:ro
     environment:
       - GF_SERVER_PROTOCOL=https
       - GF_SECURITY_ADMIN_USER=admin
@@ -177,6 +199,17 @@ services:
       - ft_transcendence
     restart: unless-stopped
 
+  postgres-exporter:
+      container_name: postgres-exporter
+      restart: always
+      build:
+        context: ./requirements/monitoring/exporters/postgres-exporter
+        dockerfile: Dockerfile
+      environment:
+        - DATA_SOURCE_NAME=postgresql://postgres:42transc@postgres:5432/postgres?sslmode=disable
+      networks:
+        - ft_transcendence
+
 networks:
   ft_transcendence:
     driver: bridge
@@ -185,6 +218,7 @@ volumes:
   frontend_build:
   prometheus_data:
   grafana_data:
+  database-postgres:
 
 secrets:
   ssl_certificate:

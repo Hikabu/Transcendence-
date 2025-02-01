@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,7 +26,7 @@ SECRET_KEY = 'django-insecure-k1!svx5pna71t3&y#w!9iie&5p2)7)0acb9%@k788a@2y=9r54
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['backend']
 
 
 # Application definition
@@ -90,8 +91,13 @@ WSGI_APPLICATION = 'project.wsgi.application'
 DATABASES = {
     'default': {
         # 'ENGINE': 'django.db.backends.sqlite3',
-        'ENGINE': 'django_prometheus.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        # 'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django_prometheus.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': '42transc',
+        'HOST': 'postgres',
+        'PORT': '5432',
     }
 }
 
@@ -152,9 +158,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173"  # dev
 ]
 
+# CSRF_TRUSTED_ORIGINS = [
+#     "http://localhost",
+#     "https://localhost",
+# ]
+
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "https://localhost",
+    "http://localhost:5173"
+    "http://127.0.0.1"  
 ]
 
 LOGGING = {
