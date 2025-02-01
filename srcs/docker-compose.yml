@@ -89,12 +89,12 @@ services:
       context: ./requirements/monitoring/alertmanager
       dockerfile: Dockerfile
       args:
-        - SMTP_TO=${SMTP_TO}
-        - SMTP_FROM=${SMTP_FROM}
-        - SMTP_SMARTHOST=${SMTP_SMARTHOST}
-        - SMTP_AUTH_USERNAME=${SMTP_AUTH_USERNAME}
-        - SMTP_AUTH_IDENTITY=${SMTP_AUTH_IDENTITY}
-        - SMTP_AUTH_PASSWORD=${SMTP_AUTH_PASSWORD}
+        - SMTP_TO=ft_transcendence42bkk@gmail.com
+        - SMTP_FROM=ft_transcendence42bkk
+        - SMTP_SMARTHOST=smtp.gmail.com:587
+        - SMTP_AUTH_IDENTITY=ft_transcendence42bkk@gmail.com
+        - SMTP_AUTH_USERNAME=ft_transcendence42bkk@gmail.com
+        - SMTP_AUTH_PASSWORD=pltshjbbzhfhmzqt
     volumes:
       - ./requirements/monitoring/alertmanager/data:/alertmanager/data
     networks:
