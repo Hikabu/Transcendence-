@@ -1,30 +1,32 @@
+FROM alpine:latest as builder
+
+ARG PROMETHEUS_PASSWORD=$PROMETHEUS_PASSWORD
+
+RUN apk add --no-cache python3 py3-pip py3-virtualenv
+
+RUN mkdir -p /etc/prometheus/auth
+
+COPY passw-gen.py /passw-gen.py
+
+RUN python3 -m venv /venv && . /venv/bin/activate && pip install bcrypt
+
+RUN . /venv/bin/activate && \
+    python3 /passw-gen.py ${PROMETHEUS_PASSWORD} > /etc/prometheus/auth/hashed_password
+
 FROM prom/prometheus:latest
 
-ARG PROMETHEUS_PASSWORD
-ENV PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}
+USER root
 
-# copy configuration files
+RUN mkdir -p /etc/prometheus/auth /etc/prometheus/ssl
+
+COPY --from=builder /etc/prometheus/auth /etc/prometheus/auth
 COPY prometheus.yml /etc/prometheus/prometheus.yml
 COPY web.yml /etc/prometheus/web.yml
 COPY alert_rules.yml /etc/prometheus/alert_rules.yml
 
-# set up auth with password
-COPY gen-pass.py /tmp/gen-pass.py
-RUN apt-get update && apt-get install -y python3 python3-pip && \
-    pip3 install bcrypt && \
-    python3 /tmp/gen-pass.py "${PROMETHEUS_PASSWORD}" > /etc/prometheus/auth/password && \
-    sed -i "s|hashed_password|$(cat /etc/prometheus/auth/password)|g" /etc/prometheus/web.yml && \
-    rm -rf /tmp/gen-pass.py /var/lib/apt/lists/*
+RUN chown -R nobody:nobody /etc/prometheus
 
-# set up SSL with proper permissions
-RUN mkdir -p /etc/prometheus/ssl && \
-    chown -R nobody:nobody /etc/prometheus/ssl
-COPY ../../secrets/ssl /etc/prometheus/ssl/
-RUN chmod 600 /etc/prometheus/ssl/*
+RUN HASHED_PASSWORD=$(cat /etc/prometheus/auth/hashed_password) && \
+    sed -i 's|hashed_password|'"$HASHED_PASSWORD"'|g' /etc/prometheus/web.yml
 
 USER nobody
-
-EXPOSE 9090
-
-CMD [ "--config.file=/etc/prometheus/prometheus.yml", \
-      "--web.config.file=/etc/prometheus/web.yml" ]

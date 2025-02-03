@@ -1,3 +1,3 @@
-FROM prom/node-exporter:v1.6.1
+FROM prom/node-exporter:latest
 
 EXPOSE 9100

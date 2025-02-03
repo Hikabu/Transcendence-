@@ -93,11 +93,11 @@ DATABASES = {
         # 'ENGINE': 'django.db.backends.sqlite3',
         # 'NAME': BASE_DIR / 'db.sqlite3',
         'ENGINE': 'django_prometheus.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': '42transc',
-        'HOST': 'postgres',
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', '42transc'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'postgres'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 

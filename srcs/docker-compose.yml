@@ -65,22 +65,86 @@ services:
   postgres:
     container_name: postgres
     build:
-      context: ./requirements/postgresql
+      context: ./requirements/postgres-db
       dockerfile: Dockerfile
     ports:
       - '5432:5432'
     networks:
       - ft_transcendence
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=postgres   
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=42transc
+      - POSTGRES_DB=${POSTGRES_DB}   
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 3
     restart: always
+
+  prometheus:
+    container_name: prometheus
+    build:
+      context: ./requirements/monitoring/prometheus
+      dockerfile: Dockerfile
+      args:
+        - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}
+    volumes:
+      - ./requirements/monitoring/prometheus/data:/prometheus/data
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.config.file=/etc/prometheus/web.yml'
+    ports:
+      - "9090:9090"
+    networks:
+      - ft_transcendence
+    restart: unless-stopped
+
+  grafana:
+    build:
+      context: ./requirements/monitoring/grafana
+      dockerfile: Dockerfile
+    container_name: grafana
+    volumes:
+      - ./requirements/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./requirements/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./requirements/monitoring/grafana/data:/var/lib/grafana/data
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/cadvisor.json
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/etc/ssl/certificate.crt
+      - GF_SERVER_CERT_KEY=/etc/ssl/certificate.key
+      - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}
+    ports:
+      - "3000:3000"
+    networks:
+      - ft_transcendence
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  cadvisor:
+    container_name: cadvisor
+    restart: always
+    privileged: true
+    build:
+      context: ./requirements/monitoring/exporters/cadvisor
+      dockerfile: Dockerfile
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - ft_transcendence
 
   alertmanager:
     container_name: alertmanager
@@ -89,80 +153,18 @@ services:
       context: ./requirements/monitoring/alertmanager
       dockerfile: Dockerfile
       args:
-        - SMTP_TO=ft_transcendence42bkk@gmail.com
-        - SMTP_FROM=ft_transcendence42bkk
-        - SMTP_SMARTHOST=smtp.gmail.com:587
-        - SMTP_AUTH_IDENTITY=ft_transcendence42bkk@gmail.com
-        - SMTP_AUTH_USERNAME=ft_transcendence42bkk@gmail.com
-        - SMTP_AUTH_PASSWORD=pltshjbbzhfhmzqt
+        - SMTP_TO=${SMTP_TO}
+        - SMTP_FROM=${SMTP_FROM}
+        - SMTP_SMARTHOST=${SMTP_SMARTHOST}
+        - SMTP_AUTH_USERNAME=${SMTP_AUTH_USERNAME}
+        - SMTP_AUTH_IDENTITY=${SMTP_AUTH_IDENTITY}
+        - SMTP_AUTH_PASSWORD=${SMTP_AUTH_PASSWORD}
     volumes:
       - ./requirements/monitoring/alertmanager/data:/alertmanager/data
     networks:
       - ft_transcendence
     ports:
       - '9093:9093'
-    depends_on:
-      - prometheus
-
-  cadvisor:
-      container_name: cadvisor
-      restart: always
-      privileged: true
-      build:
-        context: ./requirements/monitoring/exporters/cadvisor
-        dockerfile: Dockerfile
-      volumes:
-        - /:/rootfs:ro
-        - /var/run/docker.sock:/var/run/docker.sock:rw
-        - /sys:/sys:ro
-        - /var/lib/docker/:/var/lib/docker:ro
-        - /dev/disk/:/dev/disk:ro
-      ports:
-        - "8080:8080"
-      networks:
-        - ft_transcendence
-
-  prometheus:
-    image: prom/prometheus:v2.45.0
-    container_name: prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-      - '--web.enable-admin-api'
-      - '--web.listen-address=:9090'
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./requirements/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-      - ./requirements/monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
-    networks:
-      - ft_transcendence
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./requirements/monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./requirements/monitoring/grafana/dashboards:/etc/grafana/dashboards
-      - grafana_data:/var/lib/grafana
-    environment:
-      - GF_SERVER_PROTOCOL=https
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/cadvisor.json
-      - GF_METRICS_ENABLED=true
-      - GF_AUTH_DISABLE_LOGIN_FORM=false
-    networks:
-      - ft_transcendence
-    restart: unless-stopped
     depends_on:
       - prometheus
 
@@ -200,25 +202,29 @@ services:
     restart: unless-stopped
 
   postgres-exporter:
-      container_name: postgres-exporter
-      restart: always
-      build:
-        context: ./requirements/monitoring/exporters/postgres-exporter
-        dockerfile: Dockerfile
-      environment:
-        - DATA_SOURCE_NAME=postgresql://postgres:42transc@postgres:5432/postgres?sslmode=disable
-      networks:
-        - ft_transcendence
+    container_name: postgres-exporter
+    restart: always
+    build:
+      context: ./requirements/monitoring/exporters/postgres-exporter
+      dockerfile: Dockerfile
+    environment:
+      - DATA_SOURCE_NAME=${DATA_SOURCE_NAME}
+    networks:
+      - ft_transcendence
 
 networks:
   ft_transcendence:
+    name: ft_transcendence
     driver: bridge
 
 volumes:
   frontend_build:
-  prometheus_data:
-  grafana_data:
-  database-postgres:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/${USER}/data/
+      o: bind
 
 secrets:
   ssl_certificate:

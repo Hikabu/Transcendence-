@@ -5,6 +5,14 @@ datasources:
     type: prometheus
     access: proxy
     url: http://prometheus:9090
+    basicAuth: true
+    basicAuthUser: prometheus
+    secureJsonData:
+      basicAuthPassword: ${PROMETHEUS_PASSWORD}
+    withCredentials: false
     isDefault: true
     editable: true
+    jsonData:
+      tlsSkipVerify: true
+      timeInterval: 5s
     uid: prometheus
