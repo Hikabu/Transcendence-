@@ -16,7 +16,7 @@ all: setup run
 setup:
 	@echo "Setting up the environment for ft_transcendence..."
 	@mkdir -p ./secrets $(DATA_PATH)
-	@sudo chmod 777 ./secrets $(DATA_PATH)
+	@chmod 777 ./secrets $(DATA_PATH)
 	@docker volume rm srcs_frontend_build 2>/dev/null || true
 
 run: setup
