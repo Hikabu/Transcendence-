@@ -1,18 +1,54 @@
+<!-- <script setup>
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+// Reactive authentication state
+const isAuthenticated = computed(() => {
+  return localStorage.getItem('isAuthenticated') === 'true';
+});
+const handleLogout = () => {
+  // Clear authentication state from localStorage
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('isAuthenticated');
+  router.push('/');
+};
+</script> -->
+
+
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/store/auth';
+import axios from 'axios';
 
 const router = useRouter();
-const authStore = useAuthStore();
+const isAuthenticated = ref(false);
 
-// Reactive authentication state
-const isAuthenticated = computed(() => authStore.isAuthenticated);
+// Function to check authentication status
+const checkAuthStatus = async () => {
+  try {
+    const response = await axios.get('/api/auth-status/');
+    isAuthenticated.value = response.data.isAuthenticated;
+    console.log("im here");
 
-// Handle logout
-const handleLogout = () => {
-  authStore.logout();
-  router.push('/');
+  } catch (error) {
+    isAuthenticated.value = false; // User is not authenticated
+  }
+};
+
+// Call the function when the component is mounted
+checkAuthStatus();
+
+// Function to handle logout
+const handleLogout = async () => {
+  try {
+    await axios.post('/api/logout/');
+    isAuthenticated.value = false; // Update local state
+    router.push('/');
+  } catch (error) {
+    console.error('Logout failed:', error);
+  }
 };
 </script>
 
@@ -44,6 +80,35 @@ const handleLogout = () => {
     </router-view>
   </main>
 </template>
+
+<!-- <template>
+  <nav>
+    <router-link to="/">Login</router-link> |
+    <router-link to="/register">Register</router-link> |
+    <router-link 
+      v-if="isAuthenticated"
+      to="/game"
+    >
+      Game
+    </router-link>
+    <a 
+      v-else 
+      class="disabled-link"
+    >
+      Game
+    </a>
+    
+    <template v-if="isAuthenticated">
+      | <button @click="handleLogout">Logout</button>
+    </template>
+  </nav>
+  
+  <main class="layout">
+    <router-view v-slot="{ Component }">
+      <component :is="Component" />
+    </router-view>
+  </main>
+</template> -->
 
 <style scoped>
 .layout {

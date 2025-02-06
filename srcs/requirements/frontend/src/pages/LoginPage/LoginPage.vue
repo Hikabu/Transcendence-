@@ -83,24 +83,28 @@ const handleSubmit = async () => {
       email: email.value,
       password: password.value,
 
-      // rememberMe: rememberMe.value,
     });
 
     // Check for a successful response. 
-    // Adjust this condition based on your API's response structure.
-    if (response.data && response.data.success) {
-      console.log("Access token received:", response.data.access);
+    if (response.data && response.data.access) {
+      console.log("Access token received:", response.data);
+      //store in local 
+      localStorage.setItem('token', response.data.access);
+      //store ststus
+      localStorage.setItem('isAuthenticated', 'true');
+      const token = localStorage.getItem('token');
+      if (token)
+        axios.defaults.headers.common['Authorization'] = "Bearer " + token;
       router.push('/game');
     } else {
+
       // If the backend didn't return success, add an error message.
       errors.value.push('Invalid email or password.');
-      
     }
   } catch (error) {
     // Handle errors returned from the server or network issues.
     if (error.response && error.response.data) {
       // The backend might return an object with error details.
-      // Adjust this as necessary for your backend.
       errors.value.push(error.response.data.error || 'An error occurred during login.');
     } else {
       errors.value.push('Network error or server is not available.');

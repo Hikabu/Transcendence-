@@ -3,7 +3,7 @@ import LoginPage from '@/pages/LoginPage/LoginPage.vue';
 import Game from '@/features/Game/Game.vue';
 import RegisterPage from '@/pages/RegisterPage/RegisterPage.vue';
 import NotFound from '@/pages/NotFound.vue';
-import { useAuthStore } from '@/store/auth';
+// import { useAuthStore } from '@/store/auth';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,11 +35,15 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore();
+  // const authStore = useAuthStore();
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    console.log(to.meta.requiresAuth);
+    console.log(localStorage.getItem('isAuthenticated'));
+    console.log("we fucked up");
     next('/');
-  } else if (to.meta.requiresAuth === false && authStore.isAuthenticated) {
+  } else if (to.meta.requiresAuth === false && isAuthenticated) {
     next('/game');
   } else {
     next();
