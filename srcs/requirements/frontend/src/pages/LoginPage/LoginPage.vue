@@ -95,7 +95,7 @@ const handleSubmit = async () => {
       const token = localStorage.getItem('token');
       if (token)
         axios.defaults.headers.common['Authorization'] = "Bearer " + token;
-      router.push('/game');
+      router.push('/menu');
     } else {
 
       // If the backend didn't return success, add an error message.

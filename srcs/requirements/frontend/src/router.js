@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LoginPage from '@/pages/LoginPage/LoginPage.vue';
 import Game from '@/features/Game/Game.vue';
+import Game from '@/features/Menu/Menu.vue';
 import RegisterPage from '@/pages/RegisterPage/RegisterPage.vue';
 import NotFound from '@/pages/NotFound.vue';
 // import { useAuthStore } from '@/store/auth';
@@ -21,10 +22,16 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/menu',
+      name: 'Menu',
+      component: Menu,
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/game',
       name: 'Game',
       component: Game,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -44,7 +51,7 @@ router.beforeEach((to, from, next) => {
     console.log("we fucked up");
     next('/');
   } else if (to.meta.requiresAuth === false && isAuthenticated) {
-    next('/game');
+    next('/menu');
   } else {
     next();
   }

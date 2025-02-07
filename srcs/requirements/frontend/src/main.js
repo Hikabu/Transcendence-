@@ -1,10 +1,3 @@
-import './style.css'
-import { createPinia } from 'pinia'
-import { createApp } from 'vue'
-// import { useAuthStore } from './store/auth'
-import App from './App.vue'
-import axios from 'axios' // http requests 
-import router from './router'
 import '@dzangolab/vue-country-flag-icon/dist/CountryFlag.css';
 import './vendor/normalize.css';
 import './vendor/fonts/lexend_exa/lexend_exa.css';
@@ -21,7 +14,16 @@ import ru from './locales/ru.json';
 import th from './locales/th.json';
 import { svgComponents } from './shared/lib';
 
-// axios.defaults.baseURL = 'http://127.0.0.1:80' // automatically prepend URL to the request path.
+export const i18n = createI18n({
+  locale: localStorage.getItem('lang'),
+  fallbackLocale: 'en',
+  legacy: false,
+  messages: {
+    en,
+    ru,
+    th,
+  },
+});
 
 const app = createApp(App);
 
