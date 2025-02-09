@@ -1,297 +1,143 @@
 <template>
-	<div class="chat-view">
-	  <!-- Chat Window -->
-	  <div class="chat-window-container">
-		<ChatWindow :messages="messages" @send-message="handleSendMessage" />
-	  </div>
-  
-	  <!-- Online Users List -->
-	  <div class="user-list-container">
-		<UserList :onlineUsers="onlineUsers" @block-user="handleBlockUser" @invite-to-play="handleInviteToPlay" />
-	  </div>
-	</div>
-  </template>
-  
-  <script>
-  import { ChatWindow, UserList } from './components';
-  
-  export default {
-	components: {
-	  ChatWindow,
-	  UserList,
-	},
-	data() {
-	  return {
-		messages: [], // Array of chat messages
-		onlineUsers: [], // Array of online users
-		socket: null, // WebSocket connection
-	  };
-	},
-	created() {
-	  // Initialize WebSocket connection
-	  this.socket = new WebSocket('ws://localhost:3000');
-  
-	  // Handle incoming messages
-	  this.socket.onmessage = (event) => {
-		const data = JSON.parse(event.data);
-		if (data.type === 'chatMessage') {
-		  this.messages.push(data.message);
-		} else if (data.type === 'onlineUsers') {
-		  this.onlineUsers = data.users;
-		}
-	  };
-  
-	  // Fetch initial messages and online users
-	  this.fetchMessages();
-	  this.fetchOnlineUsers();
-	},
-	methods: {
-	  // Fetch initial messages from the server
-	  async fetchMessages() {
-		const response = await fetch('http://localhost:3000/api/chat/messages');
-		this.messages = await response.json();
-	  },
-  
-	  // Fetch initial online users from the server
-	  async fetchOnlineUsers() {
-		const response = await fetch('http://localhost:3000/api/chat/users');
-		this.onlineUsers = await response.json();
-	  },
-  
-	  // Send a new message
-	  handleSendMessage(text) {
-		if (text.trim()) {
-		  const message = {
-			id: Date.now(),
-			text,
-			sender: { id: 1, username: 'CurrentUser' }, // Replace with real user data
-			timestamp: new Date(),
-		  };
-		  this.socket.send(JSON.stringify({ type: 'chatMessage', message }));
-		}
-	  },
-  
-	  // Block a user
-	  handleBlockUser(userId) {
-		fetch('http://localhost:3000/api/chat/block', {
-		  method: 'POST',
-		  headers: { 'Content-Type': 'application/json' },
-		  body: JSON.stringify({ userId }),
-		});
-	  },
-  
-	  // Invite a user to play
-	  handleInviteToPlay(userId) {
-		fetch('http://localhost:3000/api/chat/invite', {
-		  method: 'POST',
-		  headers: { 'Content-Type': 'application/json' },
-		  body: JSON.stringify({ userId }),
-		});
-	  },
-	},
-  };
-  </script>
-  
-  <style scoped>
-  .chat-view {
-	display: flex;
-	height: 100vh;
-	background-color: #f5f5f5;
-	padding: 20px;
-	gap: 20px;
-  }
-  
-  .chat-window-container {
-	flex: 3;
-	background-color: white;
-	border-radius: 8px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-  }
-  
-  .user-list-container {
-	flex: 1;
-	background-color: white;
-	border-radius: 8px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-  }
-  
-  @media (max-width: 768px) {
-	.chat-view {
-	  flex-direction: column;
-	  padding: 10px;
-	}
-  
-	.chat-window-container,
-	.user-list-container {
-	  flex: 1;
-	  width: 100%;
-	}
-  }
-  </style>
+	<div class="chat-container">
+		<!-- User List -->
+		<UserList 
+			:current-user="currentUser"
+			:active-users="activeUsers" 
+			@block-user="blockUser" 
+			@view-profile="viewProfile" 
+			@invite-to-game="inviteToGame" 
+			@direct-message="directMessage"
+		/>
 
-<!-- 
-  <template>
-	<div class="chat-view">
-	  <!-- Chat Window -->
-	  <div class="chat-window-container">
-		<ChatWindow :messages="messages" @send-message="handleSendMessage" />
-	  </div>
-  
-	  <!-- Online Users List -->
-	  <div class="user-list-container">
-		<UserList :onlineUsers="onlineUsers" @block-user="handleBlockUser" @invite-to-play="handleInviteToPlay" />
-	  </div>
+		<!-- Chat Section -->
+		<div class="chat-section">
+			<ChatWindow :messages="messages" />
+			
+			<!-- Message Input -->
+			<div class="message-input">
+				<input v-model="newMessage" placeholder="Type a message..." @keyup.enter="sendMessage" />
+				<button @click="sendMessage">Send</button>
+			</div>
+		</div>
 	</div>
-  </template>
-  
-  <script>
-  import { ChatWindow, UserList } from './components';
-  import { fetchMessages, fetchOnlineUsers, blockUser, inviteToPlay, socket } from './services/index.js'; // Named imports
-  
-  export default {
-	components: {
-	  ChatWindow,
-	  UserList,
-	},
+</template>
+
+<script>
+// import ChatWindow from './components/ChatWindow/ChatWindow.vue';
+// import UserList from './components/UserList/UserList.vue';
+import { ChatWindow, UserList } from './components';
+import { onMessage,sendMessage } from './services/socket';
+
+export default {
+	components: { ChatWindow, UserList },
 	data() {
-	  return {
-		messages: [], // Array of chat messages
-		onlineUsers: [], // Array of online users
-		socket: null, // WebSocket connection
-		isSocketReady: false, // Flag to track WebSocket connection state
-	  };
-	},
-	created() {
-	  // Use the imported socket
-	  this.socket = socket;
-  
-	  // Log WebSocket connection status
-	  this.socket.onopen = () => {
-		console.log('WebSocket connection established');
-		this.isSocketReady = true; // Set a flag to indicate the socket is ready
-	  };
-  
-	  // Handle incoming messages
-	  this.socket.onmessage = (event) => {
-		console.log('Message received:', event.data);
-		const data = JSON.parse(event.data);
-		if (data.type === 'chatMessage') {
-		  this.messages.push(data.message);
-		} else if (data.type === 'onlineUsers') {
-		  this.onlineUsers = data.users;
-		}
-	  };
-  
-	  // Handle connection errors
-	  this.socket.onerror = (error) => {
-		console.error('WebSocket error:', error);
-	  };
-  
-	  // Handle connection close
-	  this.socket.onclose = () => {
-		console.log('WebSocket connection closed');
-		this.isSocketReady = false; // Reset the flag when the connection is closed
-	  };
-  
-	  // Fetch initial messages and online users
-	  this.fetchInitialData();
+		return {
+			messages: [],
+			newMessage: '',
+			activeUsers: [],
+			blockedUsers: [],
+			currentUser: this.currentUser,
+		};
 	},
 	methods: {
-	  // Fetch initial data (messages and online users)
-	  async fetchInitialData() {
-		try {
-		  this.messages = await fetchMessages();
-		  this.onlineUsers = await fetchOnlineUsers();
-		} catch (error) {
-		  console.error('Error fetching initial data:', error);
-		}
-	  },
-  
-	  // Send a new message
-	  handleSendMessage(text) {
-		if (text.trim() && this.isSocketReady) { // Check if the socket is ready
-		  const message = {
-			id: Date.now(),
-			text,
-			sender: { id: 1, username: 'CurrentUser' }, // Replace with real user data
-			timestamp: new Date(),
-		  };
-		  console.log('Sending message:', message);
-		  this.socket.send(JSON.stringify({ type: 'chatMessage', message }));
-		} else {
-		  console.error('WebSocket is not ready or message is empty');
-		}
-	  },
-  
-	  // Block a user
-	  async handleBlockUser(userId) {
-		try {
-		  await blockUser(userId);
-		  console.log('User blocked:', userId);
-		} catch (error) {
-		  console.error('Error blocking user:', error);
-		}
-	  },
-  
-	  // Invite a user to play
-	  async handleInviteToPlay(userId) {
-		try {
-		  await inviteToPlay(userId);
-		  console.log('User invited to play:', userId);
-		} catch (error) {
-		  console.error('Error inviting user to play:', error);
-		}
-	  },
+		sendMessage() {
+			if (this.newMessage.trim()) {
+				console.log(this.newMessage);
+				sendMessage(this.newMessage);
+				this.newMessage = '';
+			}
+		},
+		blockUser(user) {
+			if (user == this.currentUser) {
+				alert(`You cannot block yourself: ${user}.`);
+			} else if (!this.blockedUsers.includes(user)) {
+				this.blockedUsers.push(user);
+				alert(`You have blocked ${user}.`);
+			}
+		},
+		viewProfile(user) {
+			alert(`Viewing profile of ${user}`);
+		},
+		inviteToGame(user) {
+			alert(`Game invitation sent to ${user}!`);
+			// Implement game invite logic if needed (e.g., socket event)
+		},
+		directMessage(user) {
+			this.newMessage = `@${user} `;
+		},
 	},
-  };
-  </script>
-  
-  <style scoped>
-  .chat-view {
-	display: flex;
-	height: 100vh;
-	background-color: #d14a4a;
-	padding: 20px;
-	gap: 20px;
-  }
-  
-  .chat-window-container {
-	flex: 3;
-	background-color: rgb(255, 255, 255);
-	border-radius: 8px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-  }
-  
-  .user-list-container {
-	flex: 1;
-	background-color: white;
-	border-radius: 8px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-  }
-  
-  @media (max-width: 768px) {
-	.chat-view {
-	  flex-direction: column;
-	  padding: 10px;
-	}
-  
-	.chat-window-container,
-	.user-list-container {
-	  flex: 1;
-	  width: 100%;
-	}
-  }
-  </style> -->
-  
+	mounted() {
+		onMessage((data) => {
+			console.log("Received message:", data);
+			if (data.type === 'user_list_update') {
+				this.activeUsers = data.active_users;
+			} 
+			else if (data.type === 'chat_message' && !this.blockedUsers.includes(data.message.user)) {
+				this.messages.push(data.message);
+			}
+			else if (data.type === 'user_info') {
+				this.currentUser = data.username;
+				console.log(data.username);
+			}
+		});
+	},
+};
+</script>
+
+<style scoped>
+.chat-container {
+display: flex;
+gap: 20px;
+
+height: 90vh;
+padding: 20px;
+
+background-color: #f4f4f4;
+}
+
+
+.chat-section {
+display: flex;
+flex: 1;
+flex-direction: column;
+}
+
+
+.message-input {
+display: flex;
+gap: 10px;
+
+padding: 10px;
+
+background: white;
+border-radius: 8px;
+box-shadow: 2px 4px 10px rgb(0 0 0 / 0.1);
+}
+
+
+input {
+flex: 1;
+padding: 12px;
+border: 1px solid #cccccc;
+border-radius: 6px;
+}
+
+
+button {
+cursor: pointer;
+
+padding: 12px 16px;
+
+color: white;
+
+background: #3498db;
+border: none;
+border-radius: 6px;
+}
+
+
+button:hover {
+background: #2980b9;
+}
+</style>

@@ -1,63 +1,72 @@
 <template>
-	<div class="message" :class="{ 'message-sent': isSentByMe }">
-	  <div class="message-sender">{{ message.sender.username }}</div>
-	  <div class="message-text">{{ message.text }}</div>
-	  <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+	<div :class="messageClass">
+		<strong class="username">{{ message.user }}</strong> 
+		<span class="content">{{ message.content }}</span>
+		<span class="timestamp">{{ message.timestamp }}</span>
 	</div>
-  </template>
-  
-  <script>
-  export default {
-	props: {
-	  message: {
-		type: Object,
-		required: true,
-	  },
-	},
+</template>
+
+<script>
+export default {
+	props: ['message'],
 	computed: {
-	  isSentByMe() {
-		return this.message.sender.id === 1; // Replace with real user ID
-	  },
-	},
-	methods: {
-	  formatTime(timestamp) {
-		return new Date(timestamp).toLocaleTimeString();
-	  },
-	},
-  };
-  </script>
-  
-  <style scoped>
-  .message {
+		messageClass() {
+			return {
+				message: true,  // Base class
+				'direct-message': this.message.content.startsWith('(DM'), // Highlight DMs
+				'system-message': this.message.user.toLowerCase() === 'system', // Highlight system messages
+			};
+		}
+	}
+};
+</script>
+
+<style scoped>
+/* General Message Styling */
+.message {
+	display: flex;
+	flex-direction: column;
+
+	max-width: 75%;
 	margin-bottom: 10px;
-	padding: 8px;
+	padding: 10px;
+
+	background: #e1f5fe; /* Light blue for normal messages */
 	border-radius: 8px;
-	background-color: #e9ecef;
-	max-width: 70%;
-  }
-  
-  .message-sent {
-	background-color: #007bff;
-	color: white;
-	margin-left: auto;
-  }
-  
-  .message-sender {
-	font-weight: bold;
-	margin-bottom: 4px;
-  }
-  
-  .message-text {
-	margin-bottom: 4px;
-  }
-  
-  .message-time {
-	font-size: 0.8em;
-	color: #666;
-	text-align: right;
-  }
-  
-  .message-sent .message-time {
-	color: #ddd;
-  }
-  </style>
+}
+
+/* Direct Messages */
+.direct-message {
+	background: #ffd54f; /* Yellow for direct messages */
+	border-left: 5px solid #ff9800; /* Orange border for visibility */
+}
+
+/* System Messages */
+.system-message {
+	font-style: italic;
+	color: #333333; /* Darker text for readability */
+	text-align: center;
+
+	background: #d3d3d3; /* Gray for system messages */
+	border-left: none;
+	border-radius: 8px;
+}
+
+/* Username Styling */
+.username {
+	font-weight: 700;
+	color: #2c3e50;
+}
+
+/* Message Content */
+.content {
+	color: #34495e;
+}
+
+/* Timestamp */
+.timestamp {
+	align-self: flex-end;
+	font-size: 0.8rem;
+	color: gray;
+}
+</style>

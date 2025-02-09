@@ -1,44 +1,52 @@
-import { useChatStore } from '../stores/chatStore';
+let socket = new WebSocket('ws://localhost:8000/ws/chat/');
 
-// Initialize WebSocket connection
-const socket = new WebSocket('ws://localhost:3000');
-
-// Set up WebSocket event listeners
-export const setupSocket = () => {
-  const chatStore = useChatStore();
-
-  // Handle incoming messages
-  socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.type === 'chatMessage') {
-      // Add the new message to the state
-      chatStore.addMessage(data.message);
-    } else if (data.type === 'onlineUsers') {
-      // Update the list of online users
-      chatStore.setOnlineUsers(data.users);
-    }
-  };
-
-  // Handle connection errors
-  socket.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
-
-  // Handle connection close
-  socket.onclose = () => {
-    console.log('WebSocket connection closed');
-  };
+const reconnect = () => {
+  console.log('Reconnecting...');
+  // Attempt to reconnect after 2 seconds
+  setTimeout(() => {
+    socket = new WebSocket('ws://localhost:8000/ws/chat/');
+  }, 2000);
 };
 
-// Send a message through the WebSocket
+socket.onopen = () => {
+  console.log('Connected to WebSocket');
+};
+
+socket.onerror = (error) => {
+  console.error('WebSocket error:', error);
+  reconnect();
+};
+
+socket.onclose = (event) => {
+  console.log('WebSocket closed:', event);
+  reconnect();
+};
+
 export const sendMessage = (message) => {
   if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: 'chatMessage', message }));
+    socket.send(JSON.stringify({ message }));
   } else {
     console.error('WebSocket is not open');
   }
 };
 
-// Export the socket for use in other components
-export default socket;
+export const onMessage = (callback) => {
+	socket.onmessage = (event) => {
+	console.log('Raw message received:', event.data); // Debugging
+
+	try {
+		const data = JSON.parse(event.data);
+		console.log('Parsed message:', data); // Debugging
+
+		// Ensure callback is correctly called with structured data
+		if (typeof callback === 'function') {
+		callback(data);
+		} else {
+		console.error('Callback is not a function');
+		}
+	} catch (e) {
+		console.error('Error parsing received message:', e);
+	}
+	};
+};
+
