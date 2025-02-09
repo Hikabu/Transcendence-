@@ -8,25 +8,28 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 """
 
 import os
-import django
 from django.core.asgi import get_asgi_application
 from django.urls import path
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from project.apps.pong.consumers import PongConsumer
-from project.apps.chat import consumers
+# from project.apps.chat.consumers import ChatConsumer
 
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
 
-django.setup()
+# Initialize Django ASGI application
+django_asgi_app = get_asgi_application()
+
+# Import ChatConsumer lazily after Django is initialized
+from project.apps.chat.consumers import ChatConsumer
 
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
+    "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
         URLRouter([
             path("ws/pong/", PongConsumer.as_asgi()),
-			path('ws/chat/', consumers.ChatConsumer.as_asgi()),
+			path('ws/chat/', ChatConsumer.as_asgi()),
         ])
     ),
 })

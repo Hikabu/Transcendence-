@@ -1,8 +1,6 @@
-import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from project.apps.chat.models import ChatMessage
-from django.contrib.auth.models import User
+import json
 
 # Store active users as a global dictionary (in-memory)
 active_users = set()
@@ -175,6 +173,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
 	@database_sync_to_async
 	def save_message(self, message):
+		from django.contrib.auth.models import User
+		from project.apps.chat.models import ChatMessage
 		guest_user, _ = User.objects.get_or_create(username=self.username, defaults={"password": "guestpassword"})
 		return ChatMessage.objects.create(content=message, user=guest_user)
 
